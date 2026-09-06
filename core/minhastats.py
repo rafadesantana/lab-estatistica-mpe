@@ -39,7 +39,7 @@ def variancia(dados, amostral=True):
 
 
 def desvio_padrao(dados, amostral=True):
-    return variancia(dados, amostral) ** 0,5
+    return variancia(dados, amostral) ** 0.5
 
 
 def percentil(dados, p):
