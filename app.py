@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-df = pd.read_csv("data/dataset_empreendedorismo_df.csv")
+df = pd.read_csv("data/varejo_brasileiro.csv")
 
-st.title("Laboratório de Estatística — MPE-DF")
+st.title("Laboratório de Estatística — Varejo Brasileiro")
 st.write(df)
