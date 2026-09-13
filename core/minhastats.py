@@ -128,4 +128,15 @@ def tabela_frequencias(dados, num_classes=None):
 
     return classes
 
-        
+
+def limites_outliers(dados):
+    q1, q2, q3 = quartis(dados)
+    iqr = q3 - q1
+    limite_inferior = q1 - 1.5 * iqr
+    limite_superior = q3 + 1.5 * iqr
+    return limite_inferior, limite_superior
+
+
+def outliers(dados):
+    limite_inferior, limite_superior = limites_outliers(dados)
+    return [x for x in dados if x < limite_inferior or x > limite_superior]

@@ -4,16 +4,16 @@ import streamlit as st
 from core.minhastats import (
     media, mediana, moda, amplitude, variancia, desvio_padrao,
     coeficiente_variacao, quartis, tabela_frequencias, percentil,
+    limites_outliers, outliers,
 )
 import plotly.express as px
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="Laboratório de Estatística — Varejo Brasileiro", layout="wide")
 
 CSS_DASHBOARD = """
 <style>
-.stApp {
-    background-color: #F4F5F7;
-}
+
 .bloco-cartoes {
     display: flex;
     gap: 16px;
@@ -154,3 +154,38 @@ fig.update_traces(marker_color="#4F46E5")
 fig.update_layout(plot_bgcolor="white", paper_bgcolor="white", bargap=0.15)
 
 st.plotly_chart(fig, use_container_width=True)
+
+
+st.subheader("Boxplot e outliers")
+
+limite_inferior, limite_superior = limites_outliers(dados)
+valores_atipicos = outliers(dados)
+
+nao_atipicos = [x for x in dados if limite_inferior <= x <= limite_superior]
+bigode_inferior = min(nao_atipicos)
+bigode_superior = max(nao_atipicos)
+
+fig_box = go.Figure()
+fig_box.add_trace(go.Box(
+    q1=[q1], median=[q2], q3=[q3],
+    lowerfence=[bigode_inferior],
+    upperfence=[bigode_superior],
+    name=coluna_escolhida,
+    marker_color="#4F46E5",
+    boxpoints=False,
+))
+if valores_atipicos:
+    fig_box.add_trace(go.Scatter(
+        x=[coluna_escolhida] * len(valores_atipicos),
+        y=valores_atipicos,
+        mode="markers",
+        marker=dict(color="#C2603B", size=5, opacity=0.5),
+        name="Outliers",
+    ))
+fig_box.update_layout(plot_bgcolor="white", paper_bgcolor="white", showlegend=False)
+st.plotly_chart(fig_box, use_container_width=True)
+
+col_a, col_b, col_c = st.columns(3)
+col_a.metric("Limite inferior (IQR)", f"{limite_inferior:.2f}")
+col_b.metric("Limite superior (IQR)", f"{limite_superior:.2f}")
+col_c.metric("Nº de outliers", f"{len(valores_atipicos)} ({len(valores_atipicos) / len(dados) * 100:.1f}%)")

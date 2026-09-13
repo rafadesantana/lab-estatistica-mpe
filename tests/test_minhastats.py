@@ -7,6 +7,7 @@ from core.minhastats import (
     quartis, percentil, coeficiente_variacao,
     covariancia, correlacao_pearson, regressao_linear_simples, r_quadrado,
     numero_classes_sturges, tabela_frequencias,
+    limites_outliers, outliers,
 )
 
 DADOS_A = [4, 8, 15, 16, 23, 42]
@@ -93,3 +94,24 @@ def test_tabela_frequencias():
     assert sum(frequencias_obtidas) == len(DADOS_B)
     assert tabela[-1]["frequencia_acumulada"] == len(DADOS_B)
     assert tabela[-1]["frequencia_relativa_acumulada"] == pytest.approx(100.0)
+
+
+def test_limites_outliers():
+    q1 = np.percentile(DADOS_A, 25)
+    q3 = np.percentile(DADOS_A, 75)
+    iqr = q3 - q1
+    esperado_inferior = q1 - 1.5 * iqr
+    esperado_superior = q3 + 1.5 * iqr
+
+    limite_inferior, limite_superior = limites_outliers(DADOS_A)
+    assert limite_inferior == pytest.approx(esperado_inferior)
+    assert limite_superior == pytest.approx(esperado_superior)
+
+
+def test_outliers():
+    q1 = np.percentile(DADOS_A, 25)
+    q3 = np.percentile(DADOS_A, 75)
+    iqr = q3 - q1
+    esperado = [x for x in DADOS_A if x < q1 - 1.5 * iqr or x > q3 + 1.5 * iqr]
+
+    assert outliers(DADOS_A) == esperado
