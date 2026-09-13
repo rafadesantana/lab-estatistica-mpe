@@ -1,3 +1,5 @@
+import math
+
 def media(dados):
     return sum(dados) / len(dados)
 
@@ -89,6 +91,41 @@ def r_quadrado(x, y):
     return r ** 2
 
 
+def numero_classes_sturges(n):
+    return round(1 + 3.322 * math.log10(n))
 
+
+def tabela_frequencias(dados, num_classes=None):
+    if num_classes is None:
+        num_classes = numero_classes_sturges(len(dados))
+
+    minimo = min(dados)
+    maximo = max(dados)
+    largura = (maximo - minimo) / num_classes
+
+    classes = []
+    limite_inferior = minimo
+    for i in range(num_classes):
+        limite_superior = limite_inferior + largura
+        if i == num_classes - 1:
+            frequencia = sum(1 for x in dados if limite_inferior <= x <= limite_superior)
+        else:
+            frequencia = sum(1 for x in dados if limite_inferior <= x < limite_superior)
+        classes.append({
+            "limite_inferior": limite_inferior,
+            "limite_superior": limite_superior,
+            "frequencia_absoluta": frequencia,
+        })
+        limite_inferior = limite_superior
+
+    n = len(dados)
+    acumulada = 0
+    for classe in classes:
+        classe["frequencia_relativa"] = (classe["frequencia_absoluta"] / n) * 100
+        acumulada += classe["frequencia_absoluta"]
+        classe["frequencia_acumulada"] = acumulada
+        classe["frequencia_relativa_acumulada"] = (acumulada / n) * 100
+
+    return classes
 
         

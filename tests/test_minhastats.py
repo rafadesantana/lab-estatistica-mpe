@@ -5,7 +5,8 @@ from scipy import stats
 from core.minhastats import (
     media, mediana, moda, amplitude, variancia, desvio_padrao,
     quartis, percentil, coeficiente_variacao,
-    covariancia, correlacao_pearson, regressao_linear_simples, r_quadrado
+    covariancia, correlacao_pearson, regressao_linear_simples, r_quadrado,
+    numero_classes_sturges, tabela_frequencias,
 )
 
 DADOS_A = [4, 8, 15, 16, 23, 42]
@@ -72,3 +73,23 @@ def test_regressao_linear_simples():
 def test_r_quadrado():
     _, _, r, _, _ = stats.linregress(DADOS_A, DADOS_B)
     assert r_quadrado(DADOS_A, DADOS_B) == pytest.approx(r ** 2)
+
+
+def test_numero_classes_sturges():
+    # k = 1 + 3.322*log10(6) = 3.58... -> arredonda pra 4
+    assert numero_classes_sturges(6) == 4
+
+
+def test_tabela_frequencias():
+    tabela = tabela_frequencias(DADOS_B, num_classes=4)
+    contagens_esperadas, bordas_esperadas = np.histogram(DADOS_B, bins=4)
+
+    frequencias_obtidas = [classe["frequencia_absoluta"] for classe in tabela]
+    assert frequencias_obtidas == list(contagens_esperadas)
+
+    assert tabela[0]["limite_inferior"] == pytest.approx(bordas_esperadas[0])
+    assert tabela[-1]["limite_superior"] == pytest.approx(bordas_esperadas[-1])
+
+    assert sum(frequencias_obtidas) == len(DADOS_B)
+    assert tabela[-1]["frequencia_acumulada"] == len(DADOS_B)
+    assert tabela[-1]["frequencia_relativa_acumulada"] == pytest.approx(100.0)

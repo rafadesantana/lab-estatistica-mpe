@@ -3,8 +3,9 @@ import streamlit as st
 
 from core.minhastats import (
     media, mediana, moda, amplitude, variancia, desvio_padrao,
-    coeficiente_variacao, quartis,
+    coeficiente_variacao, quartis, tabela_frequencias, percentil,
 )
+import plotly.express as px
 
 st.set_page_config(page_title="Laboratório de Estatística — Varejo Brasileiro", layout="wide")
 
@@ -115,3 +116,41 @@ elif len(modas) == 1:
 else:
     valores_formatados = ", ".join(f"{v:.2f}" for v in modas)
     st.write(f"Moda: valores empatados — {valores_formatados}")
+
+
+st.subheader("Distribuição de frequências")
+
+tabela = tabela_frequencias(dados)
+
+linhas_tabela = []
+for classe in tabela:
+    linhas_tabela.append({
+        "Classe": f"{classe['limite_inferior']:.2f} – {classe['limite_superior']:.2f}",
+        "Frequência absoluta": classe["frequencia_absoluta"],
+        "Frequência relativa (%)": round(classe["frequencia_relativa"], 1),
+        "Frequência acumulada": classe["frequencia_acumulada"],
+    })
+
+st.dataframe(pd.DataFrame(linhas_tabela), use_container_width=True)
+
+recortar = st.checkbox(
+    "Recortar o 1% superior no gráfico (a tabela acima sempre mostra os dados completos)",
+    value=tabela[0]["frequencia_relativa"] > 80,
+)
+
+if recortar:
+    limite_visual = percentil(dados, 99)
+    dados_grafico = [x for x in dados if x <= limite_visual]
+    tabela_grafico = tabela_frequencias(dados_grafico)
+else:
+    tabela_grafico = tabela
+
+fig = px.bar(
+    x=[f"{c['limite_inferior']:.2f} – {c['limite_superior']:.2f}" for c in tabela_grafico],
+    y=[c["frequencia_absoluta"] for c in tabela_grafico],
+    labels={"x": "Classe", "y": "Frequência"},
+)
+fig.update_traces(marker_color="#4F46E5")
+fig.update_layout(plot_bgcolor="white", paper_bgcolor="white", bargap=0.15)
+
+st.plotly_chart(fig, use_container_width=True)
