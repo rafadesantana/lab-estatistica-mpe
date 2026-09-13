@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+import random
 
 from core.minhastats import (
     media, mediana, moda, amplitude, variancia, desvio_padrao,
@@ -189,3 +190,105 @@ col_a, col_b, col_c = st.columns(3)
 col_a.metric("Limite inferior (IQR)", f"{limite_inferior:.2f}")
 col_b.metric("Limite superior (IQR)", f"{limite_superior:.2f}")
 col_c.metric("Nº de outliers", f"{len(valores_atipicos)} ({len(valores_atipicos) / len(dados) * 100:.1f}%)")
+
+st.header("Probabilidade e simulação")
+
+aba_lgn, aba_tcl = st.tabs(["Lei dos Grandes Números", "Teorema Central do Limite"])
+
+with aba_lgn:
+    st.write(
+        "Simulação de lançamentos de moeda. A Lei dos Grandes Números diz que, "
+        "quanto mais vezes repetimos um experimento aleatório, mais a proporção "
+        "observada se aproxima da probabilidade teórica — aqui, 50% de chance de cara."
+    )
+
+    n_lancamentos = st.slider("Número de lançamentos", min_value=10, max_value=5000, value=300, step=10)
+
+    resultados = [random.randint(0, 1) for _ in range(n_lancamentos)]
+    proporcoes = [media(resultados[:i]) for i in range(1, n_lancamentos + 1)]
+
+    fig_lgn = go.Figure()
+    fig_lgn.add_trace(go.Scatter(
+        x=list(range(1, n_lancamentos + 1)),
+        y=proporcoes,
+        mode="lines",
+        name="Proporção de caras",
+        line=dict(color="#4F46E5"),
+    ))
+    fig_lgn.add_hline(y=0.5, line_dash="dash", line_color="#C2603B",
+                       annotation_text="valor teórico (0,5)")
+    fig_lgn.update_layout(
+        xaxis_title="Número de lançamentos",
+        yaxis_title="Proporção acumulada de caras",
+        plot_bgcolor="white", paper_bgcolor="white",
+    )
+    st.plotly_chart(fig_lgn, use_container_width=True)
+
+    proporcao_final = proporcoes[-1]
+    distancia = abs(proporcao_final - 0.5)
+
+    col_l1, col_l2 = st.columns(2)
+    col_l1.metric("Proporção final de caras", f"{proporcao_final:.4f}")
+    col_l2.metric("Distância do valor teórico", f"{distancia:.4f}")
+
+
+with aba_tcl:
+    st.write(
+        "O Teorema Central do Limite diz que, mesmo quando a variável original tem uma "
+        "distribuição bem torta, a distribuição das médias de amostras repetidas dela se "
+        "aproxima de uma Normal (curva de sino) à medida que o tamanho da amostra cresce."
+    )
+
+    coluna_tcl = st.selectbox(
+        "Escolha a variável a simular:",
+        COLUNAS_NUMERICAS,
+        index=COLUNAS_NUMERICAS.index("valor_produtos"),
+        key="coluna_tcl",
+    )
+    dados_tcl = df[coluna_tcl].tolist()
+
+    tamanho_amostra = st.slider("Tamanho de cada amostra (n)", min_value=5, max_value=200, value=30, step=5)
+    numero_amostras = st.slider("Número de amostras repetidas", min_value=100, max_value=2000, value=500, step=100)
+
+    medias_amostrais = [
+        media(random.choices(dados_tcl, k=tamanho_amostra))
+        for _ in range(numero_amostras)
+    ]
+
+    tabela_original = tabela_frequencias(dados_tcl)
+    tabela_medias = tabela_frequencias(medias_amostrais)
+
+    col_original, col_medias = st.columns(2)
+
+    with col_original:
+        st.caption(f"Distribuição original de {coluna_tcl}")
+        fig_original = px.bar(
+            x=[f"{c['limite_inferior']:.1f}–{c['limite_superior']:.1f}" for c in tabela_original],
+            y=[c["frequencia_absoluta"] for c in tabela_original],
+            labels={"x": "Classe", "y": "Frequência"},
+        )
+        fig_original.update_traces(marker_color="#C2603B")
+        fig_original.update_layout(plot_bgcolor="white", paper_bgcolor="white", bargap=0.15)
+        st.plotly_chart(fig_original, use_container_width=True)
+
+    with col_medias:
+        st.caption(f"Distribuição das {numero_amostras} médias amostrais (n={tamanho_amostra})")
+        fig_medias = px.bar(
+            x=[f"{c['limite_inferior']:.1f}–{c['limite_superior']:.1f}" for c in tabela_medias],
+            y=[c["frequencia_absoluta"] for c in tabela_medias],
+            labels={"x": "Classe", "y": "Frequência"},
+        )
+        fig_medias.update_traces(marker_color="#4F46E5")
+        fig_medias.update_layout(plot_bgcolor="white", paper_bgcolor="white", bargap=0.15)
+        st.plotly_chart(fig_medias, use_container_width=True)
+
+    erro_padrao_teorico = desvio_padrao(dados_tcl) / (tamanho_amostra ** 0.5)
+    desvio_observado = desvio_padrao(medias_amostrais)
+
+    col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+    col_t1.metric("Média original", f"{media(dados_tcl):.2f}")
+    col_t2.metric("Média das médias amostrais", f"{media(medias_amostrais):.2f}")
+    col_t3.metric("Erro padrão teórico (σ/√n)", f"{erro_padrao_teorico:.2f}")
+    col_t4.metric("Desvio padrão observado", f"{desvio_observado:.2f}")
+
+    
