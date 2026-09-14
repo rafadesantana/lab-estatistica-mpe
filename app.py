@@ -5,8 +5,10 @@ import random
 from core.minhastats import (
     media, mediana, moda, amplitude, variancia, desvio_padrao,
     coeficiente_variacao, quartis, tabela_frequencias, percentil,
-    limites_outliers, outliers,
+    limites_outliers, outliers, densidade_normal, densidade_exponencial,
+    covariancia, correlacao_pearson, regressao_linear_simples, r_quadrado,
 )
+
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -291,4 +293,130 @@ with aba_tcl:
     col_t3.metric("Erro padrão teórico (σ/√n)", f"{erro_padrao_teorico:.2f}")
     col_t4.metric("Desvio padrão observado", f"{desvio_observado:.2f}")
 
-    
+
+    st.header("Distribuições teóricas")
+
+coluna_dist = st.selectbox(
+    "Escolha a variável:",
+    COLUNAS_NUMERICAS,
+    index=COLUNAS_NUMERICAS.index("valor_produtos"),
+    key="coluna_dist",
+)
+dados_dist = df[coluna_dist].tolist()
+
+m = media(dados_dist)
+s = desvio_padrao(dados_dist)
+taxa = 1 / m
+
+tabela_dist = tabela_frequencias(dados_dist)
+n = len(dados_dist)
+
+pontos_bins = []
+densidade_observada = []
+for classe in tabela_dist:
+    largura = classe["limite_superior"] - classe["limite_inferior"]
+    ponto_medio = (classe["limite_inferior"] + classe["limite_superior"]) / 2
+    pontos_bins.append(ponto_medio)
+    densidade_observada.append(classe["frequencia_absoluta"] / (n * largura))
+
+minimo, maximo = min(dados_dist), max(dados_dist)
+passo = (maximo - minimo) / 199
+pontos_curva = [minimo + i * passo for i in range(200)]
+curva_normal = [densidade_normal(x, m, s) for x in pontos_curva]
+curva_exponencial = [densidade_exponencial(x, taxa) for x in pontos_curva]
+
+fig_dist = go.Figure()
+fig_dist.add_trace(go.Bar(
+    x=pontos_bins, y=densidade_observada, name="Densidade observada",
+    marker_color="#B9C2CB",
+))
+fig_dist.add_trace(go.Scatter(
+    x=pontos_curva, y=curva_normal, mode="lines", name="Curva Normal",
+    line=dict(color="#4F46E5", width=3),
+))
+fig_dist.add_trace(go.Scatter(
+    x=pontos_curva, y=curva_exponencial, mode="lines", name="Curva Exponencial",
+    line=dict(color="#C2603B", width=3),
+))
+fig_dist.update_layout(
+    xaxis_title=coluna_dist, yaxis_title="Densidade",
+    plot_bgcolor="white", paper_bgcolor="white",
+)
+st.plotly_chart(fig_dist, use_container_width=True)
+
+erro_normal = sum(
+    (classe["frequencia_relativa"] / 100) * (obs - densidade_normal(x, m, s)) ** 2
+    for x, obs, classe in zip(pontos_bins, densidade_observada, tabela_dist)
+)
+erro_exponencial = sum(
+    (classe["frequencia_relativa"] / 100) * (obs - densidade_exponencial(x, taxa)) ** 2
+    for x, obs, classe in zip(pontos_bins, densidade_observada, tabela_dist)
+)
+
+col_d1, col_d2, col_d3 = st.columns(3)
+col_d1.metric("Erro (Normal)", f"{erro_normal:.6f}")
+col_d2.metric("Erro (Exponencial)", f"{erro_exponencial:.6f}")
+col_d3.metric("Melhor ajuste", "Normal" if erro_normal < erro_exponencial else "Exponencial")
+
+st.header("Correlação e regressão")
+
+col_x, col_y = st.columns(2)
+with col_x:
+    coluna_x = st.selectbox("Variável X:", COLUNAS_NUMERICAS, index=COLUNAS_NUMERICAS.index("peso_produto_g"), key="coluna_x")
+with col_y:
+    coluna_y = st.selectbox("Variável Y:", COLUNAS_NUMERICAS, index=COLUNAS_NUMERICAS.index("valor_frete"), key="coluna_y")
+
+dados_x = df[coluna_x].tolist()
+dados_y = df[coluna_y].tolist()
+
+cov = covariancia(dados_x, dados_y)
+r = correlacao_pearson(dados_x, dados_y)
+a, b = regressao_linear_simples(dados_x, dados_y)
+r2 = r_quadrado(dados_x, dados_y)
+
+
+def classificar_correlacao(r):
+    r_abs = abs(r)
+    if r_abs < 0.3:
+        return "fraca"
+    elif r_abs < 0.6:
+        return "moderada"
+    else:
+        return "forte"
+
+
+fig_disp = go.Figure()
+fig_disp.add_trace(go.Scatter(
+    x=dados_x, y=dados_y, mode="markers",
+    marker=dict(color="#B9C2CB", size=4, opacity=0.4),
+    name="Pedidos",
+))
+
+x_min, x_max = min(dados_x), max(dados_x)
+fig_disp.add_trace(go.Scatter(
+    x=[x_min, x_max], y=[a + b * x_min, a + b * x_max],
+    mode="lines", line=dict(color="#4F46E5", width=3),
+    name="Reta de regressão",
+))
+fig_disp.update_layout(
+    xaxis_title=coluna_x, yaxis_title=coluna_y,
+    plot_bgcolor="white", paper_bgcolor="white",
+)
+st.plotly_chart(fig_disp, use_container_width=True)
+
+col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+col_r1.metric("Covariância", f"{cov:.4f}")
+col_r2.metric("Correlação (r)", f"{r:.4f}")
+col_r3.metric("Força da correlação", classificar_correlacao(r))
+col_r4.metric("R²", f"{r2:.4f}")
+
+st.write(f"{r2 * 100:.1f}% da variação de {coluna_y} é explicada por {coluna_x}.")
+st.latex(f"\\hat{{y}} = {a:.4f} + {b:.4f} \\cdot x")
+
+st.warning("Correlação não implica causalidade: mesmo que duas variáveis se movam juntas, "
+           "isso não prova que uma cause a outra.")
+
+st.subheader("Previsão interativa")
+valor_x_previsto = st.number_input(f"Digite um valor de {coluna_x}:", value=float(media(dados_x)))
+valor_y_previsto = a + b * valor_x_previsto
+st.metric(f"{coluna_y} previsto", f"{valor_y_previsto:.2f}")
