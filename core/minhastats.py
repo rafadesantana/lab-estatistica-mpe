@@ -1,6 +1,8 @@
 import math
 
 def media(dados):
+    if len(dados) == 0:
+        raise ValueError("media de sequencia vazia e indefinida")
     return sum(dados) / len(dados)
 
 
@@ -31,9 +33,13 @@ def amplitude(dados):
 
 
 def variancia(dados, amostral=True):
+    n = len(dados)
+    if amostral and n < 2:
+        raise ValueError("variancia amostral exige n >= 2")
+    if not amostral and n < 1:
+        raise ValueError("variancia populacional exige n >= 1")
     m = media(dados)
     soma_quadrados = sum((x - m) ** 2 for x in dados)
-    n = len(dados)
     if amostral:
         return soma_quadrados / (n - 1)
     else:
@@ -62,10 +68,15 @@ def quartis(dados):
 
 
 def coeficiente_variacao(dados, amostral=True):
-    return (desvio_padrao(dados, amostral) / media(dados)) * 100
+    m = media(dados)
+    if m == 0:
+        raise ValueError("coeficiente de variacao indefinido para media zero")
+    return (desvio_padrao(dados, amostral) / m) * 100
 
 
 def covariancia(x, y, amostral=True):
+    if len(x) != len(y):
+        raise ValueError("x e y precisam ter o mesmo tamanho")
     media_x = media(x)
     media_y = media(y)
     soma = sum((xi - media_x) * (yi - media_y) for xi, yi in zip(x, y))
@@ -77,11 +88,18 @@ def covariancia(x, y, amostral=True):
 
 
 def correlacao_pearson(x, y):
-    return covariancia(x, y) / (desvio_padrao(x) * desvio_padrao(y))
+    desvio_x = desvio_padrao(x)
+    desvio_y = desvio_padrao(y)
+    if desvio_x == 0 or desvio_y == 0:
+        raise ValueError("correlacao indefinida quando uma variavel e constante (desvio zero)")
+    return covariancia(x, y) / (desvio_x * desvio_y)
 
 
 def regressao_linear_simples(x, y):
-    b = covariancia(x, y) / variancia(x)
+    variancia_x = variancia(x)
+    if variancia_x == 0:
+        raise ValueError("regressao indefinida quando x e constante (variancia zero)")
+    b = covariancia(x, y) / variancia_x
     a = media(y) - b * media(x)
     return a, b
 
@@ -140,3 +158,14 @@ def limites_outliers(dados):
 def outliers(dados):
     limite_inferior, limite_superior = limites_outliers(dados)
     return [x for x in dados if x < limite_inferior or x > limite_superior]
+
+
+def densidade_normal(x, m, s):
+    expoente = -((x - m) ** 2) / (2 * s ** 2)
+    return (1 / (s * math.sqrt(2 * math.pi))) * math.exp(expoente)
+
+
+def densidade_exponencial(x, taxa):
+    if x < 0:
+        return 0.0
+    return taxa * math.exp(-taxa * x)
