@@ -282,6 +282,44 @@ col_a.metric("Limite inferior (IQR)", f"{limite_inferior:.2f}")
 col_b.metric("Limite superior (IQR)", f"{limite_superior:.2f}")
 col_c.metric("Nº de outliers", f"{len(valores_atipicos)} ({len(valores_atipicos) / len(dados) * 100:.1f}%)")
 
+outliers_abaixo = [x for x in valores_atipicos if x < limite_inferior]
+outliers_acima = [x for x in valores_atipicos if x > limite_superior]
+n_abaixo = len(outliers_abaixo)
+n_acima = len(outliers_acima)
+pct_abaixo = n_abaixo / len(dados) * 100
+pct_acima = n_acima / len(dados) * 100
+maior_valor = max(dados)
+menor_valor = min(dados)
+
+leitura = (
+    f"Na metade dos pedidos, o meio do grupo, {coluna_escolhida} fica entre "
+    f"{q1:.2f} e {q3:.2f}, esse é o comportamento típico dessa variável."
+)
+
+if n_acima > 0 and n_abaixo > 0:
+    leitura += (
+        f" Só que {n_acima} pedidos ({pct_acima:.1f}%) têm {coluna_escolhida} bem acima do normal, "
+        f"passando de {limite_superior:.2f} e chegando até {maior_valor:.2f}, e {n_abaixo} pedidos ({pct_abaixo:.1f}%) "
+        f"ficam bem abaixo, menos de {limite_inferior:.2f} e chegando até {menor_valor:.2f} no caso mais extremo. "
+        f"Esses casos fora do padrão podem distorcer uma análise baseada só na média, vale olhar eles separadamente."
+    )
+elif n_acima > 0:
+    leitura += (
+        f" Só que {n_acima} pedidos ({pct_acima:.1f}%) fogem bastante desse padrão, com {coluna_escolhida} "
+        f"passando de {limite_superior:.2f} e chegando até {maior_valor:.2f} no caso mais extremo. "
+        f"Esses casos fora do padrão podem distorcer uma análise baseada só na média, vale olhar eles separadamente."
+    )
+elif n_abaixo > 0:
+    leitura += (
+        f" Só que {n_abaixo} pedidos ({pct_abaixo:.1f}%) ficam bem abaixo desse padrão, com {coluna_escolhida} "
+        f"menor que {limite_inferior:.2f} e chegando até {menor_valor:.2f} no caso mais extremo. "
+        f"Esses casos fora do padrão podem distorcer uma análise baseada só na média, vale olhar eles separadamente."
+    )
+else:
+    leitura += " Não apareceu nenhum pedido fora desse padrão nessa amostra, os dados dessa variável são bastante consistentes."
+
+st.write(leitura)
+
 st.header("Probabilidade e simulação")
 
 aba_lgn, aba_tcl = st.tabs(["Lei dos Grandes Números", "Teorema Central do Limite"])
